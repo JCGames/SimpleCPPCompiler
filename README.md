@@ -11,6 +11,8 @@ This is still a very primitive tool. It doesn't allow for any customization of t
 
 ## How to Use
 
+Ensure header files have the extension of `.hpp` and source files have the extension of `.cpp`.
+
 Very simple. Download this project. Create an executable with dotnet or however you like. Add a path to your PATH environment variable where your resulting `scc.exe` executable resides.
 
 After installation. Simply open up a cmd window and execute the command `scc your_main_cpp_file.cpp`. And that's it, the compiler should be smart enough to do all of the dependency linking for you.
