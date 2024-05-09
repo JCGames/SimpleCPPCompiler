@@ -17,7 +17,7 @@ Very simple. Download this project. Create an executable with dotnet or however 
 
 After installation. Simply open up a cmd window and execute the command `scc your_main_cpp_file.cpp`. And that's it, the compiler should be smart enough to do all of the dependency linking for you.
 
-Some file strutures are not supported. One of these known ones is a one to many model. That is, when one header file is the dependent of multiple source files.
+Some file strutures are not supported. One of these known ones is a one to many model. That is, when one header file is depended on by multiple source files.
 
 ### Extra Command Options
 
