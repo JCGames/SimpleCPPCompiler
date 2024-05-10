@@ -26,3 +26,10 @@ Some file strutures are not supported. One of these known ones is a one to many 
 * `scc showd` will show a list of header and source files along with their dependencies.
 
 ![Screen shot showing an example of the command line output after running scc showd](images/showd_example.png)
+
+### Pre Compile File Headers
+
+```c++
+turns off compiler warnings for that file
+// SCC<nowarn>
+```
