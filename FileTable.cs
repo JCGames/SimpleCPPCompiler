@@ -20,7 +20,7 @@ internal class FileTable : IEnumerable<FilePointer>
         FindFilesAndAddToTable(rootDirectory);
     }
 
-    public void FindFilesAndAddToTable(string directory)
+    private void FindFilesAndAddToTable(string directory)
     {
         var filePaths = Directory.GetFiles(directory);
         var workingDirectory = Directory.GetCurrentDirectory() + "\\";
@@ -70,6 +70,21 @@ internal class FileTable : IEnumerable<FilePointer>
         {
             FindFilesAndAddToTable(dir!);
         }
+    }
+
+    public bool TryFindFileByNameSlow(string fileName, out FilePointer? filePointer)
+    {
+        foreach (var file in _fileTable)
+        {
+            if (file.Value.Name == fileName)
+            {
+                filePointer = file.Value;
+                return true;
+            }
+        }
+
+        filePointer = null;
+        return false;
     }
 
     public void ShowDependencies()

@@ -1,55 +1,50 @@
-using System.Drawing;
-
 internal class Compiler(FileTable fileTable)
 {
-    private readonly Dictionary<string, FilePointer> _dependencies = [];
+    private const string OBJECT_FILE_EXT = ".o";
+    private const string SOURCE_FILE_EXT = ".cpp";
+    private const string HEADER_FILE_EXT = ".hpp";
 
+    private readonly Dictionary<string, FilePointer> _dependencies = [];
+    private readonly Dictionary<string, FilePointer> _sourceFileIndex = [];
+
+    /// <summary>
+    /// Generates the necessary commands to compile a c++ project.
+    /// </summary>
+    /// <param name="rootFileName">The root c++ file. Usually called "main.cpp".</param>
     public void Compile(string rootFileName)
     {
         // find the main file
-        foreach (var file in fileTable)
+        foreach (var mainSourceFile in fileTable)
         {
-            if (rootFileName == file.Name)
+            if (rootFileName == mainSourceFile.Name)
             {
-                var filesToCompile = GetFilesForCompilation(file);
+                var sourceFilesToCompile = GetSourceFilesForCompilation(mainSourceFile);
 
                 // run the compilation
-                var process = new System.Diagnostics.Process();
-                process.StartInfo.WindowStyle = System.Diagnostics.ProcessWindowStyle.Normal;
-                process.StartInfo.FileName = "cmd.exe";
+                var process = GetCmdProcess();
 
-                var executableFileCommand = $"/C cd {file.Directory} && g++ " + file.Name + " ";
+                foreach (var sourceFile in sourceFilesToCompile)
+                {                    
+                    if (!sourceFile.ShouldBeCompiled) continue;
 
-                foreach (var fileToCompile in filesToCompile)
-                {
-                    var objectFileName = fileToCompile.Name[0..(fileToCompile.Name.Length - Path.GetExtension(fileToCompile.Name).Length)] + ".o";
-
-                    // continue building executable command
-                    executableFileCommand += (file.Directory != fileToCompile.Directory ? Path.GetRelativePath(file.Directory, fileToCompile.Directory) : "") + objectFileName + " ";
-
-                    if (!fileToCompile.ShouldBeCompiled) continue;
-
-                    // compile object file
-                    var objectFileCommand = $"/C cd {fileToCompile.Directory} && g++ -c {fileToCompile.Name}";
+                    var objectFileCommand = GenerateObjectFileCommand(sourceFile);
                     Console.WriteLine(objectFileCommand);
 
-                    process.StartInfo.Arguments = objectFileCommand;
-                    process.Start();
-                    process.WaitForExit();
+                    RunCmdCommand(process, objectFileCommand);
                 }
 
-                // run exectuable command
-                executableFileCommand += "-o " + file.Name[0..(file.Name.Length - Path.GetExtension(file.Name).Length)];
+                var executableFileCommand = GenerateExecutableFileCommand(mainSourceFile, sourceFilesToCompile);
                 Console.WriteLine(executableFileCommand);
                 
-                process.StartInfo.Arguments = executableFileCommand;
-                process.Start();
-                process.WaitForExit();
+                RunCmdCommand(process, executableFileCommand);
                 break;
             }
         }
     }
 
+    /// <summary>
+    /// Windows only.
+    /// </summary>
     public void CleanFiles()
     {
         foreach (var file in fileTable)
@@ -57,102 +52,188 @@ internal class Compiler(FileTable fileTable)
             if (Path.GetExtension(file.Name) != ".o" && Path.GetExtension(file.Name) != ".exe")
                 continue;
 
-            var process = new System.Diagnostics.Process();
-            process.StartInfo.WindowStyle = System.Diagnostics.ProcessWindowStyle.Normal;
-            process.StartInfo.FileName = "cmd.exe";
+            var process = GetCmdProcess();
 
             var command = $"/C del \"" + file.Directory + file.Name + "\"";
             Console.WriteLine(command);
 
-            process.StartInfo.Arguments = command;
-            process.Start();
-            process.WaitForExit();
+            RunCmdCommand(process, command);
         }
     }
 
-    public List<FilePointer> GetFilesForCompilation(FilePointer rootFile)
+    private static void PrintWarning(string message)
     {
-        List<FilePointer> modifiedFilesForCompilation = [];
+        Console.ForegroundColor = ConsoleColor.Yellow;
+        Console.WriteLine("[WARNING] " + message);
+        Console.ResetColor();
+    }
+
+    private static void PrintError(string message, int errorExitCode)
+    {
+        Console.ForegroundColor = ConsoleColor.Red;
+        Console.WriteLine("[ERROR] " + message);
+        Console.ResetColor();
+        Environment.Exit(errorExitCode);
+    }
+
+    private static System.Diagnostics.Process GetCmdProcess() => new()
+    {
+        StartInfo = new()
+        {
+            WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden,
+            FileName = "cmd.exe"
+        }
+    };
+
+    private static void RunCmdCommand(System.Diagnostics.Process process, string command)
+    {
+        process.StartInfo.Arguments = command;
+        process.Start();
+        process.WaitForExit();
+    }
+
+    private static string RemoveExtension(string fileName) =>
+        fileName[0..(fileName.Length - Path.GetExtension(fileName).Length)];
+
+    private static string GetSourceFileName(FilePointer filePointer) => 
+        RemoveExtension(filePointer.Name) + SOURCE_FILE_EXT;
+
+    private static string GetObjectFileName(FilePointer filePointer) => 
+        RemoveExtension(filePointer.Name) + OBJECT_FILE_EXT;
+
+    private static string GetHeaderFileName(FilePointer filePointer) =>
+        RemoveExtension(filePointer.Name) + HEADER_FILE_EXT;
+
+    private static string GenerateObjectFileCommand(FilePointer sourceFilePointer) =>
+        $"/C cd {sourceFilePointer.Directory} && g++ -c {sourceFilePointer.Name}";
+
+    private static string HeaderFilePathToSourceFilePath(string headerFilePath)
+    {
+        string fileName = Path.GetFileName(headerFilePath);
+
+        var sourceFilePath = headerFilePath[0..(headerFilePath.Length - fileName.Length)];
+
+        var fileNameNoExt = RemoveExtension(fileName);
+
+        sourceFilePath += fileNameNoExt + SOURCE_FILE_EXT;
+
+        return sourceFilePath;
+    }
+
+    private static string GenerateExecutableFileCommand(FilePointer mainSourceFile, IEnumerable<FilePointer> sourceFiles)
+    {
+        var executableFileCommand = $"/C cd {mainSourceFile.Directory} && g++ " + mainSourceFile.Name + " ";
+
+        foreach (var sourceFile in sourceFiles)
+        {
+            var objectFileDirectory = mainSourceFile.Directory != sourceFile.Directory ? Path.GetRelativePath(mainSourceFile.Directory, sourceFile.Directory) : "";
+            executableFileCommand += objectFileDirectory + GetObjectFileName(sourceFile) + " ";
+        }
+        
+        executableFileCommand += "-o " + RemoveExtension(mainSourceFile.Name);
+
+        return executableFileCommand;
+    }
+
+    private List<FilePointer> GetSourceFilesForCompilation(FilePointer rootFile)
+    {
+        List<FilePointer> sourceFilesForCompilation = [];
         
         SetDependencies(rootFile);
 
-        const string OBJECT_FILE_EXT = ".o";
-        const string SOURCE_FILE_EXT = ".cpp";
-
         foreach (var dependency in _dependencies.Values)
         {
-            var ext = Path.GetExtension(dependency.Name);
-            var nameNoExt = dependency.Name[0..(dependency.Name.Length - ext.Length)];
+            var nameNoExt = RemoveExtension(dependency.Name);
 
             // if the header file has an .o file and .cpp file
             if (fileTable.Contains(dependency.Directory + nameNoExt + OBJECT_FILE_EXT) &&
                 fileTable.Contains(dependency.Directory + nameNoExt + SOURCE_FILE_EXT))
             {
                 var oFile = fileTable[dependency.Directory + nameNoExt + OBJECT_FILE_EXT];
-                var cppFile = fileTable[dependency.Directory + nameNoExt + SOURCE_FILE_EXT];
+                var sourceFile = fileTable[dependency.Directory + nameNoExt + SOURCE_FILE_EXT];
 
                 // if the source file or header file have been modified then recompile the object file
-                if (oFile.ModifiedDate < dependency.ModifiedDate || oFile.ModifiedDate < cppFile.ModifiedDate)
-                    cppFile.ShouldBeCompiled = true;
+                if (oFile.ModifiedDate < dependency.ModifiedDate || oFile.ModifiedDate < sourceFile.ModifiedDate)
+                    sourceFile.ShouldBeCompiled = true;
 
-                modifiedFilesForCompilation.Add(cppFile);
+                sourceFilesForCompilation.Add(sourceFile);
             }
             // if the header file only has a .cpp file
             else if (fileTable.Contains(dependency.Directory + nameNoExt + SOURCE_FILE_EXT))
             {
-                var cppFile = fileTable[dependency.Directory + nameNoExt + SOURCE_FILE_EXT];
+                var sourceFile = fileTable[dependency.Directory + nameNoExt + SOURCE_FILE_EXT];
 
-                cppFile.ShouldBeCompiled = true;
-                modifiedFilesForCompilation.Add(cppFile);
+                sourceFile.ShouldBeCompiled = true;
+                sourceFilesForCompilation.Add(sourceFile);
             }
             else
             {
-                FilePointer? oFile = null;
-                FilePointer? cppFile = null;
-
-                foreach (var file in fileTable)
-                {
-                    if (file.Name == nameNoExt + OBJECT_FILE_EXT)
-                        oFile = file;
-                    else if (file.Name == nameNoExt + SOURCE_FILE_EXT)
-                        cppFile = file;
-                }
+                fileTable.TryFindFileByNameSlow(nameNoExt + OBJECT_FILE_EXT, out var oFile);
+                fileTable.TryFindFileByNameSlow(nameNoExt + SOURCE_FILE_EXT, out var sourceFile);
 
                 // if the header file has an .o file and .cpp file
-                if (cppFile != null && oFile != null)
+                if (sourceFile != null && oFile != null)
                 {   
                     // if the source file or header file have been modified then recompile the object file
-                    if (oFile.ModifiedDate < dependency.ModifiedDate || oFile.ModifiedDate < cppFile.ModifiedDate)
-                        cppFile.ShouldBeCompiled = true;
+                    if (oFile.ModifiedDate < dependency.ModifiedDate || oFile.ModifiedDate < sourceFile.ModifiedDate)
+                        sourceFile.ShouldBeCompiled = true;
 
-                    modifiedFilesForCompilation.Add(cppFile);
+                    sourceFilesForCompilation.Add(sourceFile);
                 }
                 // if the header file only has a .cpp file
-                else if (cppFile != null)
+                else if (sourceFile != null)
                 {
-                    cppFile.ShouldBeCompiled = true;
-                    modifiedFilesForCompilation.Add(cppFile);
+                    sourceFile.ShouldBeCompiled = true;
+                    sourceFilesForCompilation.Add(sourceFile);
                 }
                 else
                 {
-                    Console.ForegroundColor = ConsoleColor.Yellow;
-                    Console.WriteLine("[WARNING] " + dependency.Name + " is a single header file.");
-                    Console.ResetColor();
+                    PrintWarning(dependency.Name + " is a single header file.");
                 }
             }
         }
 
-        return modifiedFilesForCompilation;
+        return sourceFilesForCompilation;
     }
 
-    public void SetDependencies(FilePointer rootFile)
+    private void SetDependencies(FilePointer sourceFile)
     {
-        foreach (var filePath in rootFile.Dependencies)
+        IndexSourceFilesByName();
+
+        foreach (var headerFilePath in sourceFile.Dependencies)
         {
-            if (fileTable.Contains(filePath))
+            if (Path.GetExtension(headerFilePath) != HEADER_FILE_EXT)
             {
-                _dependencies.TryAdd(filePath, fileTable[filePath]);
-                SetDependencies(fileTable[filePath]);
+                PrintError($"Dependency \"{headerFilePath}\" must be a header file path in \"{sourceFile.Name}\".", 1);
+            }
+
+            if (fileTable.Contains(headerFilePath))
+            {
+                _dependencies.TryAdd(headerFilePath, fileTable[headerFilePath]);
+                SetDependencies(fileTable[headerFilePath]);
+
+                var sourceFilePath = HeaderFilePathToSourceFilePath(headerFilePath);
+                var sourceFileName = Path.GetFileNameWithoutExtension(headerFilePath) + SOURCE_FILE_EXT;
+
+                if (fileTable.Contains(sourceFilePath))
+                {
+                    SetDependencies(fileTable[sourceFilePath]);
+                }
+                else if (_sourceFileIndex.ContainsKey(sourceFileName))
+                {
+                    SetDependencies(_sourceFileIndex[sourceFileName]);
+                }
+            }
+        }
+    }
+
+    private void IndexSourceFilesByName()
+    {
+        foreach (var file in fileTable)
+        {
+            if (Path.GetExtension(file.Name) == SOURCE_FILE_EXT)
+            {
+                _sourceFileIndex.TryAdd(file.Name, file);
             }
         }
     }
