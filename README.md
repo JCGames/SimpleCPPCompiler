@@ -11,7 +11,7 @@ This is still a very primitive tool. It doesn't allow for any customization of t
 
 ## How to Use
 
-Ensure header files have the extension of `.hpp` and source files have the extension of `.cpp`.
+Ensure header files have the extension of `.hpp` and source files have the extension of `.cpp`. All personal includes should use quotation marks while c++ library includes should use less than and greater than symbols.
 
 Very simple. Download this project. Create an executable with dotnet or however you like. Add a path to your PATH environment variable where your resulting `scc.exe` executable resides.
 
