@@ -5,4 +5,5 @@ internal class FilePointer
     public List<string> Dependencies { get; set; } = [];
     public DateTime ModifiedDate { get; set; } = DateTime.MinValue;
     public bool ShouldBeCompiled { get; set; } = false;
+    public bool HaveDependenciesBeenTouched { get; set; } = false;
 }

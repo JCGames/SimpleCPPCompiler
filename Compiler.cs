@@ -166,6 +166,8 @@ internal class Compiler(FileTable fileTable)
                 sourceFile.ShouldBeCompiled = true;
                 sourceFilesForCompilation.Add(sourceFile);
             }
+            // The header and source files were not in the same folder so we have to resort
+            // to a cruder look up.
             else
             {
                 fileTable.TryFindFileByNameSlow(nameNoExt + OBJECT_FILE_EXT, out var oFile);
@@ -198,6 +200,8 @@ internal class Compiler(FileTable fileTable)
 
     private void SetDependencies(FilePointer sourceFile)
     {
+        sourceFile.HaveDependenciesBeenTouched = true;
+
         // just allows for faster source file look up
         IndexSourceFilesByName();
 
@@ -210,8 +214,8 @@ internal class Compiler(FileTable fileTable)
 
             if (fileTable.Contains(headerFilePath))
             {
-                _dependencies.TryAdd(headerFilePath, fileTable[headerFilePath]);
-                SetDependencies(fileTable[headerFilePath]);
+                var headerFile = fileTable[headerFilePath];
+                _dependencies.TryAdd(headerFilePath, headerFile);
 
                 var sourceFilePath = HeaderFilePathToSourceFilePath(headerFilePath);
                 var sourceFileName = Path.GetFileNameWithoutExtension(headerFilePath) + SOURCE_FILE_EXT;
@@ -221,11 +225,20 @@ internal class Compiler(FileTable fileTable)
                 // it's dependencies included as well.
                 if (fileTable.Contains(sourceFilePath))
                 {
-                    SetDependencies(fileTable[sourceFilePath]);
+                    if (!fileTable[sourceFilePath].HaveDependenciesBeenTouched)
+                        SetDependencies(fileTable[sourceFilePath]);
                 }
                 else if (_sourceFileIndex.ContainsKey(sourceFileName))
                 {
-                    SetDependencies(_sourceFileIndex[sourceFileName]);
+                    if (!_sourceFileIndex[sourceFileName].HaveDependenciesBeenTouched)
+                        SetDependencies(_sourceFileIndex[sourceFileName]);
+                }
+
+                // If this files dependencies have already been added,
+                // then just skip this file.
+                if (!headerFile.HaveDependenciesBeenTouched) 
+                {
+                    SetDependencies(headerFile);
                 }
             }
         }
@@ -236,9 +249,7 @@ internal class Compiler(FileTable fileTable)
         foreach (var file in fileTable)
         {
             if (Path.GetExtension(file.Name) == SOURCE_FILE_EXT)
-            {
                 _sourceFileIndex.TryAdd(file.Name, file);
-            }
         }
     }
 }
