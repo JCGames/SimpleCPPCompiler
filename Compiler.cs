@@ -198,6 +198,7 @@ internal class Compiler(FileTable fileTable)
 
     private void SetDependencies(FilePointer sourceFile)
     {
+        // just allows for faster source file look up
         IndexSourceFilesByName();
 
         foreach (var headerFilePath in sourceFile.Dependencies)
@@ -215,6 +216,9 @@ internal class Compiler(FileTable fileTable)
                 var sourceFilePath = HeaderFilePathToSourceFilePath(headerFilePath);
                 var sourceFileName = Path.GetFileNameWithoutExtension(headerFilePath) + SOURCE_FILE_EXT;
 
+                // If the header file has a source file related to it,
+                // then dependencies from that source file should have
+                // it's dependencies included as well.
                 if (fileTable.Contains(sourceFilePath))
                 {
                     SetDependencies(fileTable[sourceFilePath]);
