@@ -190,8 +190,15 @@ internal class Compiler(FileTable fileTable)
                 }
                 else
                 {
-                    if (!rootFile.Options.NoWarn)
-                        PrintWarning(dependency.Name + " is a single header file.");
+                    if (fileTable.Contains(dependency.Directory + dependency.Name))
+                    {
+                        if (!fileTable[dependency.Directory + dependency.Name].Options.NoWarn)
+                            PrintWarning(dependency.Name + " is a single header file.");
+                    }
+                    else
+                    {
+                        PrintError($"Invalid header file {dependency.Directory + dependency.Name} found in {rootFile.Name}", 1);
+                    }
                 }
             }
         }

@@ -62,11 +62,7 @@ internal class FileTable : IEnumerable<FilePointer>
                 foreach (Match match in argumentMatches)
                 {
                     var argument = match.Groups["r"].Value;
-
-                    if (argument == "nowarn")
-                    {
-                        file.Options.NoWarn = true;
-                    }
+                    file.Options.NoWarn = argument == "nowarn";
                 }
             }
 
