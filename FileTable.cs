@@ -47,6 +47,7 @@ internal class FileTable : IEnumerable<FilePointer>
                 var line = ss.ReadLine();
 
                 var matches = Regex.Matches(line!, "#include.*\"(?<r>.*)\"");
+                var argumentMatches = Regex.Matches(line!, "SCC<(?<r>.*)>");
 
                 foreach (Match match in matches)
                 {
@@ -56,6 +57,16 @@ internal class FileTable : IEnumerable<FilePointer>
                     var dependencyPath = Path.GetFullPath(directory + '\\' + dependency);
 
                     file.Dependencies.Add(dependencyPath);
+                }
+
+                foreach (Match match in argumentMatches)
+                {
+                    var argument = match.Groups["r"].Value;
+
+                    if (argument == "nowarn")
+                    {
+                        file.Options.NoWarn = true;
+                    }
                 }
             }
 

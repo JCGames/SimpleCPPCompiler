@@ -190,7 +190,8 @@ internal class Compiler(FileTable fileTable)
                 }
                 else
                 {
-                    PrintWarning(dependency.Name + " is a single header file.");
+                    if (!rootFile.Options.NoWarn)
+                        PrintWarning(dependency.Name + " is a single header file.");
                 }
             }
         }

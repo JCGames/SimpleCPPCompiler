@@ -6,4 +6,5 @@ internal class FilePointer
     public DateTime ModifiedDate { get; set; } = DateTime.MinValue;
     public bool ShouldBeCompiled { get; set; } = false;
     public bool HaveDependenciesBeenTouched { get; set; } = false;
+    public FilePointerOptions Options { get; set; } = new();
 }
