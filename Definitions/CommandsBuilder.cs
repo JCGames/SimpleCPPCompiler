@@ -1,4 +1,3 @@
-using System.Text.Json;
 using System.Text.RegularExpressions;
 
 internal partial class CommandsBuilder(FileIndexTable fileIndexTable)
@@ -7,6 +6,67 @@ internal partial class CommandsBuilder(FileIndexTable fileIndexTable)
 
     [GeneratedRegex("#include.*\"(?<path>.*)\"")]
     private static partial Regex IncludeRegex();
+
+    public void GenerateMakeFile(string rootSourceFileName)
+    {
+        var rootSourceFileExtension = Path.GetExtension(rootSourceFileName);
+
+        if (rootSourceFileExtension != ".cpp" && rootSourceFileExtension != ".c")
+        {
+            Console.WriteLine("The root file to compile from should be a source file: " + rootSourceFileName);
+            Environment.Exit(0);
+        }
+
+        if (indexTable.TryGet(rootSourceFileName, out var fileIndex))
+        {
+            var path = Path.GetDirectoryName(fileIndex!.Path);
+
+            if (path == null)
+                return;
+            
+            var dependencies = GetAllDependencies(fileIndex!);
+            List<FileIndex> dependenciesWithSourceFile = []; // we only want to compile source files into object files
+
+            foreach (var dependency in dependencies)
+            {
+                if (indexTable.ContainsKey(Path.ChangeExtension(dependency.Name, ".cpp")))
+                    dependenciesWithSourceFile.Add(dependency);
+            }
+
+            // open file
+            FileStream? fileStream;
+
+            if (!File.Exists(path + "\\Makefile"))
+            {
+                fileStream = File.Create(path + "\\Makefile");
+            }
+            else 
+            {
+                fileStream = File.Open(path + "\\Makefile", FileMode.Truncate);
+            }
+
+            // write to file
+            using var writer = new StreamWriter(fileStream);
+
+            // write the executable compilation part
+            writer.Write(Path.GetFileNameWithoutExtension(fileIndex.Name) + ": " + fileIndex.Name + " ");
+
+            foreach (var dependency in dependenciesWithSourceFile)
+            {
+                string relativePath = Path.GetRelativePath(path, dependency.Path);
+                writer.Write(Path.ChangeExtension(relativePath, ".o") + " ");
+            }
+
+            // write the dependencies object file compilation part
+            writer.Write("\n\tg++ $^ -o " + Path.GetFileNameWithoutExtension(fileIndex.Name) + "\n");
+
+            foreach (var dependency in dependenciesWithSourceFile)
+            {
+                string relativePath = Path.GetRelativePath(path, dependency.Path);
+                writer.Write("\n" + Path.ChangeExtension(dependency.Name, ".o") + ": " + Path.ChangeExtension(relativePath, ".cpp") + "\n\tg++ -c $<\n");
+            }
+        }
+    }
 
     public List<string> Build(string rootSourceFileName)
     {
