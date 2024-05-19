@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using Microsoft.VisualBasic;
 
 internal partial class CommandsBuilder(FileIndexTable fileIndexTable)
 {
@@ -89,8 +90,13 @@ internal partial class CommandsBuilder(FileIndexTable fileIndexTable)
             {
                 if (indexTable.TryGet(Path.ChangeExtension(dependency.Name, ".cpp"), out var dependencySource))
                 {
-                    dependenciesWithSourceFile.Add(dependency);
-                    commands.Add(BuildCompileObjectFileCommand(dependencySource!));
+                    indexTable.TryGet(Path.ChangeExtension(dependency.Name, ".o"), out var objectFile);
+
+                    if (objectFile == null || (objectFile.Modified < dependency.Modified) || (objectFile.Modified < dependencySource!.Modified)) 
+                    {
+                        dependenciesWithSourceFile.Add(dependency);
+                        commands.Add(BuildCompileObjectFileCommand(dependencySource!));
+                    }
                 }
             }
 

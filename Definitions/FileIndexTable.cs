@@ -29,7 +29,7 @@ internal class FileIndexTable : IEnumerable<KeyValuePair<string, FileIndex>>
             var fileInfo = new FileInfo(filePath);
             var ext = Path.GetExtension(filePath);
 
-            if (ext == ".cpp" || ext == ".c" || ext == ".hpp" || ext == ".h" || ext == ".exe")
+            if (ext == ".cpp" || ext == ".c" || ext == ".hpp" || ext == ".h" || ext == ".exe" || ext == ".o")
             {
                 var fileIndex = new FileIndex 
                 { 
@@ -38,7 +38,7 @@ internal class FileIndexTable : IEnumerable<KeyValuePair<string, FileIndex>>
                     Modified = fileInfo.LastWriteTime
                 };
 
-                if (!_fileIndexTable.TryAdd(Path.GetFileName(filePath), fileIndex) && ext != ".exe")
+                if (!_fileIndexTable.TryAdd(Path.GetFileName(filePath), fileIndex) && ext != ".exe" && ext != ".o")
                 {
                     Console.WriteLine("Cannot have duplicate file names in project: " + filePath);
                     Environment.Exit(1);

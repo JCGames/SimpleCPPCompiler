@@ -1,8 +1,6 @@
 ﻿if (args.Length <= 0) return;
 
-var fileIndexTable = new FileIndexTable();
-
-if (args[0] == "clean" && args.Length > 1)
+if (args[0] == "clean")
 {
     Cleaner.Clean();
     return;   
@@ -19,6 +17,7 @@ foreach (var arg in args)
 }
 
 var totalTimeSW = System.Diagnostics.Stopwatch.StartNew();
+var fileIndexTable = new FileIndexTable();
 var commandsBuilder = new CommandsBuilder(fileIndexTable);
 
 if (createMakeFile)

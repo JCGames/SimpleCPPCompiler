@@ -23,6 +23,4 @@ Some file strutures are not supported. One of these known ones is a one to many 
 
 * `scc clean` will clean the exectuable file and all of the object files out of your directory.
 
-* `scc showd` will show a list of header and source files along with their dependencies.
-
-![Screen shot showing an example of the command line output after running scc showd](images/showd_example.png)
+* `scc your_main_file.cpp --makefile` will create an auto generated Makefile.
