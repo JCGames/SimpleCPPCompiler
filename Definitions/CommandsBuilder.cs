@@ -23,25 +23,24 @@ internal partial class CommandsBuilder(FileIndexTable fileIndexTable)
         if (indexTable.TryGet(rootSourceFileName, out var fileIndex))
         {
             var dependencies = GetAllDependencies(fileIndex!);
-
-            foreach (var dependency in dependencies)
-                Console.WriteLine(JsonSerializer.Serialize(dependency, new JsonSerializerOptions { WriteIndented = true }));
+            List<FileIndex> dependenciesWithSourceFile = []; // we only want to compile source files into object files
 
             foreach (var dependency in dependencies)
             {
                 if (indexTable.TryGet(Path.ChangeExtension(dependency.Name, ".cpp"), out var dependencySource))
                 {
+                    dependenciesWithSourceFile.Add(dependency);
                     commands.Add(BuildCompileObjectFileCommand(dependencySource!));
                 }
             }
 
-            commands.Add(BuildCompileExecutableFileCommand(fileIndex!, dependencies));
+            commands.Add(BuildCompileExecutableFileCommand(fileIndex!, dependenciesWithSourceFile));
         }
 
         return commands;
     }
 
-    private string BuildCompileObjectFileCommand(FileIndex fileIndex)
+    private static string BuildCompileObjectFileCommand(FileIndex fileIndex)
     {
         var path = Path.GetDirectoryName(fileIndex.Path);
 
@@ -50,7 +49,7 @@ internal partial class CommandsBuilder(FileIndexTable fileIndexTable)
         return $"/C cd {path}\\ && g++ -c {fileIndex.Name}";
     }
 
-    private string BuildCompileExecutableFileCommand(FileIndex fileIndex, IEnumerable<FileIndex> dependencies)
+    private static string BuildCompileExecutableFileCommand(FileIndex fileIndex, IEnumerable<FileIndex> dependencies)
     {
         var path = Path.GetDirectoryName(fileIndex.Path);
 
@@ -83,6 +82,7 @@ internal partial class CommandsBuilder(FileIndexTable fileIndexTable)
                 if (results.Contains(dependencyFileIndex!)) // breaks circular dependencies 
                     continue; 
 
+                // get the dependencies that are in this header file and include this header file as a dependency as well
                 results.Add(dependencyFileIndex!);
 
                 foreach (var dfi in GetAllDependencies(dependencyFileIndex!))
@@ -100,7 +100,7 @@ internal partial class CommandsBuilder(FileIndexTable fileIndexTable)
         return results;
     }
 
-    private List<string> GetIncludesFromFile(FileIndex fileIndex)
+    private static List<string> GetIncludesFromFile(FileIndex fileIndex)
     {
         List<string> includes = [];
 

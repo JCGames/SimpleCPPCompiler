@@ -18,7 +18,7 @@ internal class CommandsExecuter
         foreach (var command in commands)
         {
             Console.WriteLine(command);
-            process.StartInfo.Arguments += command;
+            process.StartInfo.Arguments = command;
             process.Start();
             process.WaitForExit();
         }

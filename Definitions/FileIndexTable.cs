@@ -8,6 +8,8 @@ internal class FileIndexTable : IEnumerable<KeyValuePair<string, FileIndex>>
 
     public FileIndexTable(string directory) => IndexFiles(directory);
 
+    public bool ContainsKey(string key) => _fileIndexTable.ContainsKey(key);
+
     public bool TryGet(string key, out FileIndex? value) => _fileIndexTable.TryGetValue(key, out value);
 
     public IEnumerator<KeyValuePair<string, FileIndex>> GetEnumerator()
