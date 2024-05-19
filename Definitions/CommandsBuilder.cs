@@ -55,7 +55,7 @@ internal partial class CommandsBuilder(FileIndexTable fileIndexTable)
 
             foreach (var dependency in dependenciesWithSourceFile)
             {
-                string relativePath = Path.GetRelativePath(path, dependency.Path);
+                string relativePath = Path.GetRelativePath(path, dependency.Path).Replace('\\', '/');
                 writer.Write(Path.ChangeExtension(relativePath, ".o") + " ");
             }
 
@@ -64,7 +64,7 @@ internal partial class CommandsBuilder(FileIndexTable fileIndexTable)
 
             foreach (var dependency in dependenciesWithSourceFile)
             {
-                string relativePath = Path.GetRelativePath(path, dependency.Path);
+                string relativePath = Path.GetRelativePath(path, dependency.Path).Replace('\\', '/');
                 writer.Write("\n" + Path.ChangeExtension(dependency.Name, ".o") + ": " + Path.ChangeExtension(relativePath, ".cpp") + "\n\tg++ -c $<\n");
             }
         }
