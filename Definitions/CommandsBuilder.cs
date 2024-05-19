@@ -4,6 +4,7 @@ using Microsoft.VisualBasic;
 internal partial class CommandsBuilder(FileIndexTable fileIndexTable)
 {
     private readonly FileIndexTable indexTable = fileIndexTable;
+    private readonly HashSet<FileIndex> _dependencies = [];
 
     [GeneratedRegex("#include.*\"(?<path>.*)\"")]
     private static partial Regex IncludeRegex();
@@ -25,10 +26,10 @@ internal partial class CommandsBuilder(FileIndexTable fileIndexTable)
             if (path == null)
                 return;
             
-            var dependencies = GetAllDependencies(fileIndex!);
+            GetAllDependencies(fileIndex!);
             List<FileIndex> dependenciesWithSourceFile = []; // we only want to compile source files into object files
 
-            foreach (var dependency in dependencies)
+            foreach (var dependency in _dependencies)
             {
                 if (indexTable.ContainsKey(Path.ChangeExtension(dependency.Name, ".cpp")))
                     dependenciesWithSourceFile.Add(dependency);
@@ -83,10 +84,10 @@ internal partial class CommandsBuilder(FileIndexTable fileIndexTable)
 
         if (indexTable.TryGet(rootSourceFileName, out var fileIndex))
         {
-            var dependencies = GetAllDependencies(fileIndex!);
+            GetAllDependencies(fileIndex!);
             List<FileIndex> dependenciesWithSourceFile = []; // we only want to compile source files into object files
 
-            foreach (var dependency in dependencies)
+            foreach (var dependency in _dependencies)
             {
                 if (indexTable.TryGet(Path.ChangeExtension(dependency.Name, ".cpp"), out var dependencySource))
                 {
@@ -132,10 +133,8 @@ internal partial class CommandsBuilder(FileIndexTable fileIndexTable)
         return command + $"-o {Path.GetFileNameWithoutExtension(fileIndex.Name)}";
     }
 
-    private HashSet<FileIndex> GetAllDependencies(FileIndex fileIndex)
+    private void GetAllDependencies(FileIndex fileIndex)
     {
-        HashSet<FileIndex> results = [];
-
         var includes = GetIncludesFromFile(fileIndex);
 
         foreach (var dependency in includes)
@@ -145,25 +144,21 @@ internal partial class CommandsBuilder(FileIndexTable fileIndexTable)
             // gets the dependencies that are in the header file
             if (indexTable.TryGet(dependencyFileName, out var dependencyFileIndex))
             {
-                if (results.Contains(dependencyFileIndex!)) // breaks circular dependencies 
+                if (_dependencies.Contains(dependencyFileIndex!)) // breaks circular dependencies 
                     continue; 
 
                 // get the dependencies that are in this header file and include this header file as a dependency as well
-                results.Add(dependencyFileIndex!);
+                _dependencies.Add(dependencyFileIndex!);
 
-                foreach (var dfi in GetAllDependencies(dependencyFileIndex!))
-                    results.Add(dfi);
+                GetAllDependencies(dependencyFileIndex!);
 
                 // gets the dependenceies that are in the header file's corrosponding source file if it has one
                 if (indexTable.TryGet(Path.ChangeExtension(dependencyFileName, ".cpp"), out var dependencySourceFileIndex))
                 {
-                    foreach (var dfi in GetAllDependencies(dependencySourceFileIndex!))
-                        results.Add(dfi);
+                    GetAllDependencies(dependencySourceFileIndex!);
                 }
             }
         }
-
-        return results;
     }
 
     private static List<string> GetIncludesFromFile(FileIndex fileIndex)
