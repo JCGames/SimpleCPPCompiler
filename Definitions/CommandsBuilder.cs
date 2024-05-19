@@ -91,13 +91,14 @@ internal partial class CommandsBuilder(FileIndexTable fileIndexTable)
             {
                 if (indexTable.TryGet(Path.ChangeExtension(dependency.Name, ".cpp"), out var dependencySource))
                 {
-                    indexTable.TryGet(Path.ChangeExtension(dependency.Name, ".o"), out var objectFile);
-
-                    if (objectFile == null || (objectFile.Modified < dependency.Modified) || (objectFile.Modified < dependencySource!.Modified)) 
+                    if (!indexTable.TryGet(Path.ChangeExtension(dependency.Name, ".o"), out var objectFile) || 
+                        (objectFile!.Modified < dependency.Modified) || 
+                        (objectFile.Modified < dependencySource!.Modified)) 
                     {
-                        dependenciesWithSourceFile.Add(dependency);
                         commands.Add(BuildCompileObjectFileCommand(dependencySource!));
                     }
+                    
+                    dependenciesWithSourceFile.Add(dependency);
                 }
             }
 
