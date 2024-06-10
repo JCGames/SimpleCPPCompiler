@@ -1,29 +1,19 @@
-﻿if (args.Length <= 0) return;
+﻿using JCGames.SimpleCppCompiler;
+using System.Diagnostics;
 
-if (args[0] == "clean")
+if (args.Length <= 0) return;
+
+var sw = Stopwatch.StartNew();
+
+var fileTable = new FileTable();
+var fileDependencyTree = new FileDependencyTree();
+fileDependencyTree.CreateTree(fileTable, args[0]);
+
+if (fileDependencyTree.Root is not null)
 {
-    Cleaner.Clean();
-    return;   
+    var commands = CommandsBuilder.Build(fileDependencyTree.Root.FileInfo, fileDependencyTree.GetDependenciesList());
+    Utils.ExecuteCommands(commands);
 }
 
-bool createMakeFile = false;
-
-foreach (var arg in args)
-{
-    if (arg == "--makefile")
-    {
-        createMakeFile = true;
-    }
-}
-
-var totalTimeSW = System.Diagnostics.Stopwatch.StartNew();
-var fileIndexTable = new FileIndexTable();
-var commandsBuilder = new CommandsBuilder(fileIndexTable);
-
-if (createMakeFile)
-    commandsBuilder.GenerateMakeFile(args[0]);
-else
-    CommandsExecuter.Execute(commandsBuilder.Build(args[0]));
-
-totalTimeSW.Stop();
-Console.WriteLine("Total execution time: " + totalTimeSW.Elapsed);
+sw.Stop();
+Console.WriteLine("Total execution time took: " + sw.Elapsed);
